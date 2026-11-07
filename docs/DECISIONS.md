@@ -8,6 +8,9 @@
 | D4 | 2026-11-07 | **No runtime dependencies at M0.** The provider contract uses stdlib dataclasses. Pydantic and FastAPI arrive with M1 and M4, when there is an API boundary to validate. | ACCEPTED for M0 |
 | D5 | 2026-11-07 | **Mock output is a JSON placeholder (`*.mock.json`), not a fake MP4**, so it cannot be mistaken for generated media. | ACCEPTED for M0 |
 | D6 | 2026-11-07 | **API keys go in the `x-goog-api-key` header, never the `?key=` query parameter**, even though most Google Omni examples use the query parameter. This keeps keys out of URLs and logs. | ACCEPTED |
+| D7 | 2026-11-07 | **In-app update manager is milestone M1.5**, between M1 and M2. It needs M1's app shell, settings and Alembic. It must exist before M2 creates real user data, so data separation, backups and rollback are in place from the start. Existing milestone numbers are unchanged. | ACCEPTED (maintainer request) |
+| D8 | 2026-11-07 | **Update checks are on by default, but only after the first-run onboarding step discloses them.** The user can disable them in Settings, and `OPENFILM_UPDATE_CHECK=0` disables them too. A check sends only an anonymous request for public release metadata. | PROPOSED. Maintainer may choose opt-in instead |
+| D9 | 2026-11-07 | **The signing method for update artifacts is not chosen yet.** Candidates: Sigstore / GitHub artifact attestations, or minisign. It will be verified against official docs at M1.5 and published by M11. Until a signature can be verified, one-click archive install stays disabled and only instructions are offered. | OPEN |
 
 ## D2 toolchain details
 

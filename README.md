@@ -68,7 +68,8 @@ cd frontend && npm run check             # lint + typecheck + tests
 
 - Never commit `.env`. Only `.env.example`, which holds placeholders, is tracked. The secret scan fails if a `.env` file or a key-shaped value is tracked.
 - From M5, API keys are stored in the OS credential store, used only by the local backend, and never sent to the browser or written to logs.
-- All projects, media and history stay on your device (`data/`, git-ignored).
+- All projects, characters, locations, voices, media, metadata and settings stay on your device. From M1 they live in your OS user-data directory, separate from the app files, so updates never touch them.
+- The only data that leaves your device is the minimum input for a generation you explicitly authorize. Update checks (M1.5, which you can turn off) send no user data.
 
 ## Docs
 

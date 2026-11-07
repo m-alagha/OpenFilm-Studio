@@ -3,8 +3,17 @@
 ## Product goal
 An open-source local-first film studio where each film/series has its own character library, location library, voice assignments, scripts, scenes, references, generated takes, timeline, exports and usage budget. Easy GitHub install; configure eligible provider API credentials locally; no mandatory account or hosted backend.
 
+**Local-first guarantee:** by default, all of the following stay on the user's device:
+
+- projects, characters, locations, voices and reference files
+- generated media and all metadata
+- application settings
+- credentials, which go in the OS credential store
+
+Only the minimum inputs a generation needs are sent, only to the provider the user selected, and only after the user has seen exactly what will be sent and authorized it. See `docs/ARCHITECTURE.md` § Local-first guarantees.
+
 ## Milestone protocol
-One milestone at a time. Each has deliverables, tests, acceptance gate. Stop after each. Do not skip. Use mock provider until real provider integration is verified.
+One milestone at a time, in order M0, M1, M1.5, M2 … M11. M1.5 was added after M0 so existing numbering is preserved. Each has deliverables, tests, acceptance gate. Stop after each. Do not skip. Use mock provider until real provider integration is verified.
 
 ### M0 — Provider feasibility and repository foundation
 - Verify actual official Google video model/product/API names, availability, required billing/allowlisting, input/output constraints, reference image/video support, duration/resolution, pricing and usage/balance APIs. Record URL, access date and confidence in `docs/PROVIDER_CAPABILITIES.md`.
@@ -14,7 +23,66 @@ One milestone at a time. Each has deliverables, tests, acceptance gate. Stop aft
 
 ### M1 — Local app bootstrap and one-command startup
 - React/TypeScript/Vite + Tailwind frontend; FastAPI backend; SQLite with Alembic; media directories; start script for macOS/Linux/Windows instructions; health endpoints.
-- Acceptance: fresh clone -> documented setup -> browser opens; automated backend/frontend smoke tests; no API key needed for mock.
+- **App/data separation (foundation for M1.5):**
+  - User data lives in the OS user-data directory, never inside the install or git checkout. `OPENFILM_DATA_DIR` overrides it.
+  - The app version and DB schema version are recorded.
+  - Startup refuses to open a DB whose schema is newer than the app supports.
+- Acceptance: fresh clone -> documented setup -> browser opens; automated backend/frontend smoke tests; no API key needed for mock; tests prove no user data is written inside the app directory.
+
+### M1.5 — In-app update manager (mandatory)
+
+**Update check**
+- A background check against the project's GitHub Releases. Stable releases only; drafts and prereleases are ignored.
+- The GitHub API contract (endpoint, fields, rate limits) must be verified against official docs at implementation time. Do not code it from memory.
+- The check runs after startup, never blocks it, and uses a short timeout and a cached result.
+- Offline, rate-limited or failed checks are silent. They are logged locally only.
+- The request carries only the repository path and a generic User-Agent. It never sends projects, media, settings, identifiers or API keys.
+
+**Version comparison**
+- SemVer 2.0 comparison. Invalid tags are ignored.
+
+**Notification**
+- An in-app notification shows the new version, sanitized release notes, and update size when the release provides it.
+- Actions: **Update Now**, **Remind Me Later** (snooze), **Skip Version** (persisted; a newer version shows again).
+
+**Settings**
+- Enable or disable automatic checks, plus a "Check now" button.
+- Disclosed during first-run onboarding.
+- `OPENFILM_UPDATE_CHECK=0` disables checks for CI and air-gapped use.
+
+**Install-type detection, and safe update paths for each**
+- **Git checkout:** show instructions (clean-tree check, fetch tags, verify tag, checkout, reinstall with lockfiles, migrate). An optional approved one-click flow is allowed only when the working tree is clean and the tag is verified.
+- **Docker:** show instructions only (pull pinned image tag or digest, recreate the container; data stays on its volume). The app never controls Docker from inside the container.
+- **Release archive:** one-click update where technically possible:
+  1. Download to a staging directory.
+  2. Verify the SHA-256 checksum and the release signature. The signing method is chosen and verified at M1.5 and published by M11.
+  3. Extract safely (no zip-slip or symlinks).
+  4. Install side by side as a new versioned app directory.
+  5. Switch to it only after a health check.
+
+**Data preservation**
+- Updates never modify the user-data directory, except for DB migrations.
+- Before any migration, take a consistent SQLite backup (online backup API), record its checksum and verify it.
+- Migrations run in a transaction.
+- The OS keychain credentials are never touched.
+
+**Recovery and rollback**
+- Keep the previous app version and the pre-migration backup.
+- If an install, migration or health check fails, restore both automatically where possible. Otherwise show exact manual recovery steps.
+- Keep a configurable number of backups.
+
+**Acceptance**
+Automated tests cover:
+- version comparison
+- update detection against mocked responses: newer, same, older, prerelease, draft, skipped, snoozed, disabled, offline, timeout, rate limit, malformed data
+- failed updates: checksum mismatch, bad signature, partial download, extraction attack, migration failure, health-check failure
+- data preservation: byte-identical fixture data directory (DB rows, media, settings) before and after an update
+- rollback: app version and DB restored
+- privacy: outbound request contains no user data or keys
+- non-blocking startup with the network blocked
+- no install without an explicit approval action
+
+A full end-to-end archive update between two real releases is re-verified at M11.
 
 ### M2 — Projects and asset library
 - CRUD projects (film/series, seasons optional), scoped characters, locations, props, outfits, voice profiles; image uploads and reference metadata; import/export safe project bundle.
@@ -54,7 +122,12 @@ One milestone at a time. Each has deliverables, tests, acceptance gate. Stop aft
 
 ### M11 — Open-source release and cross-platform hardening
 - GitHub Actions CI, security scan, docs, contributor guide, issue templates, demo assets with clear rights, Docker optional, release checklist, sample mock project, backup/restore.
-- Acceptance: clean machine onboarding, passing CI, secrets scan, license audit, reproducible demo, tagged release candidate.
+- Release integrity for the M1.5 updater:
+  - SemVer tags, with stable vs. prerelease flags set correctly
+  - release notes
+  - per-asset SHA-256 checksums plus a signature (the method verified at M1.5)
+  - a published upgrade-path test
+- Acceptance: clean machine onboarding, passing CI, secrets scan, license audit, reproducible demo, tagged release candidate; in-app update from the previous release candidate to the new one preserves a fixture data directory, and rollback works.
 
 ## Out of scope for V1
 Guaranteed face/voice identity, feature claims without provider support, automatic cloud billing enforcement, unlimited free generation, distributed multiuser hosting, autonomous paid generation.

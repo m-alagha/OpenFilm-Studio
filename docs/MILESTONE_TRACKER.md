@@ -2,10 +2,13 @@
 
 Statuses: NOT_STARTED, IN_PROGRESS, BLOCKED, ACCEPTED. Only user approves ACCEPTED.
 
+Order: M0 → M1 → M1.5 → M2 … M11. M1.5 was inserted on 2026-11-07 at the maintainer's request, without renumbering the other milestones.
+
 | Milestone | Status | Evidence | Approval |
 |---|---|---|---|
 | M0 | ACCEPTED | See "M0 evidence" below | Maintainer, 2026-11-07, with conditions D1 and D3 |
 | M1 | NOT_STARTED | — | — |
+| M1.5 | NOT_STARTED (mandatory in-app update manager, added 2026-11-07) | — | — |
 | M2 | NOT_STARTED | — | — |
 | M3 | NOT_STARTED | — | — |
 | M4 | NOT_STARTED | — | — |
@@ -21,7 +24,7 @@ After each milestone record commit, commands and pass counts, screenshots (if ap
 
 ## M0 evidence (2026-11-07)
 
-**Commit:** recorded below the tracker table once committed.
+**Commit:** `0bbecba` ("M0: provider feasibility evidence and repository foundation").
 
 ### Provider verification (docs only, no live calls)
 

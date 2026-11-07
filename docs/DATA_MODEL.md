@@ -16,3 +16,9 @@ Take(id, shot_id, job_id, video_asset_id, approved, review_notes)
 UsageEntry(id, project_id, job_id, type, amount_usd, source, status, created_at)
 
 Use foreign keys and cascading rules deliberately. Enforce project-scoped authorization at API boundaries even in local mode. Never store raw API keys in DB. Store asset paths relative to managed root and reject traversal/symlinks in import.
+
+AppMeta(key, value): app_version, schema_version, install_type
+UpdateState(id=1, auto_check_enabled, last_checked_at, latest_seen_version, skipped_version nullable, snoozed_until nullable)
+DbBackup(id, created_at, from_schema, to_schema, relative_path, sha256, reason, verified)
+
+Update-related state stores no credentials. Backups live under the user-data directory's `backups/`, never in the app directory.
