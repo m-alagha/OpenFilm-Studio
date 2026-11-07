@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run every M0 check: secret scan, backend lint/types/tests, mock smoke, frontend checks.
+# Run every check: secret scan, backend lint/types/tests, mock smoke, frontend lint/types/
+# tests/build, and the end-to-end dev-stack smoke test.
 # Offline after install. Makes no provider calls and needs no API key.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -18,5 +19,9 @@ uv run --no-sync python -m app.smoke
 echo "== frontend"
 cd "$ROOT/frontend"
 npm run --silent check
+
+echo "== end-to-end smoke (real backend + UI, temporary data dir)"
+cd "$ROOT"
+uv run --no-sync --project backend python scripts/e2e_smoke.py
 
 echo "ALL CHECKS PASSED"

@@ -1,16 +1,22 @@
 [project]
 name = "openfilm-backend"
-version = "0.0.1"
-description = "OpenFilm Studio local backend (M0 foundation: provider contract + mock provider)"
+version = "0.1.0"
+description = "OpenFilm Studio local backend"
 license = "Apache-2.0"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
     "ruff>=0.8",
     "mypy>=1.13",
+    "httpx2>=0.1",
 ]
 
 [build-system]
@@ -32,9 +38,9 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S603", "S607"]
+"tests/**" = ["S101", "S603", "S607", "S608"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
-files = ["app", "tests"]
+files = ["app", "tests", "../scripts"]

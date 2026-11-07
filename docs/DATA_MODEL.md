@@ -22,3 +22,11 @@ UpdateState(id=1, auto_check_enabled, last_checked_at, latest_seen_version, skip
 DbBackup(id, created_at, from_schema, to_schema, relative_path, sha256, reason, verified)
 
 Update-related state stores no credentials. Backups live under the user-data directory's `backups/`, never in the app directory.
+
+**Implemented at M1 (schema version 2):**
+
+- `app_meta(key, value)`: `schema_version`, `created_by_app_version`, `created_at`, `last_opened_app_version`, `last_opened_at`.
+- `app_settings(key, value_json, updated_at)`: only registered, typed keys are accepted. The only key so far is `ui.welcome_dismissed`. Never credentials.
+- Alembic's `alembic_version` table.
+
+Migrations live in `backend/app/db/migrations/versions/`. Each one bumps `SCHEMA_VERSION` (tests enforce this).

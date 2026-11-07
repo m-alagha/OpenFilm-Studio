@@ -1,4 +1,4 @@
-# Run every M0 check on Windows PowerShell. Offline after install; no provider calls, no API key.
+# Run every check on Windows PowerShell (same steps as check.sh). Offline after install; no provider calls, no API key.
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
@@ -23,5 +23,8 @@ Invoke-Step $Backend "uv" @("run", "--no-sync", "python", "-m", "app.smoke")
 
 Write-Host "== frontend"
 Invoke-Step (Join-Path $Root "frontend") "npm.cmd" @("run", "--silent", "check")
+
+Write-Host "== end-to-end smoke (real backend + UI, temporary data dir)"
+Invoke-Step $Root "uv" @("run", "--no-sync", "--project", "backend", "python", "scripts\e2e_smoke.py")
 
 Write-Host "ALL CHECKS PASSED"

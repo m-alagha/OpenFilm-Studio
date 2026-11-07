@@ -1,26 +1,44 @@
 # Third-party license audit
 
-**Audited:** 2026-11-07, at M0. Package licenses were read from installed package metadata and from `frontend/package-lock.json`.
+**Audited:** 2026-11-07 at M0, and re-audited at M1 when the first runtime dependencies were added. Package licenses were read from installed package metadata and from `frontend/package-lock.json`.
 
 ## Scope of the project license
 
 - **Apache-2.0** applies only to the original OpenFilm Studio code and docs, which the maintainer owns or has the right to license.
 - It does **not** relicense third-party dependencies, copied materials or assets. Those keep their own licenses.
 
-## Runtime dependencies
+## Runtime dependencies (re-audited at M1, 2026-11-07)
 
-None. At M0 the backend has `dependencies = []` and the frontend has no `dependencies`. Nothing third-party ships with the app.
+**Backend runtime closure** (`uv export --no-dev`, 18 packages):
 
-## Development-only dependencies
+| Packages | License |
+|---|---|
+| fastapi, pydantic, pydantic-core, SQLAlchemy, alembic, Mako, anyio, h11, annotated-types, annotated-doc, typing-inspection | MIT |
+| starlette, uvicorn, click, idna, MarkupSafe | BSD-3-Clause |
+| opentelemetry-api (required by FastAPI) | Apache-2.0 |
+| typing_extensions | PSF-2.0 |
+| colorama (Windows only, via click) | BSD-3-Clause |
 
-These are installed locally for linting and testing. They are not redistributed in this repository; only lockfiles that reference them are committed.
+**About `opentelemetry-api`:** it is the no-op tracing API. Without an SDK and exporter it cannot send anything. A test (`test_no_opentelemetry_sdk_or_exporter_installed`) fails if an SDK or exporter is ever installed, and the server sets `OTEL_SDK_DISABLED=true`. There is no telemetry.
 
-| Ecosystem | Licenses found | Packages | Compatible with an Apache-2.0 project? |
-|---|---|---|---|
-| Python (`backend/uv.lock`, 13 packages) | MIT, BSD-2-Clause, BSD (colorama), Apache-2.0 OR BSD-2-Clause (packaging), PSF-2.0 (typing_extensions), **MPL-2.0 (pathspec)** | pytest, ruff, mypy and their dependencies | Yes |
-| npm (`frontend/package-lock.json`, 152 packages, all `dev`) | MIT 110, Apache-2.0 15, BSD-2/3-Clause 8, ISC 6, **MPL-2.0 12** (lightningcss and platform binaries, pulled in through vitest), **BlueOak-1.0.0 1** (minimatch) | typescript, eslint, typescript-eslint, vitest and their dependencies | Yes |
+**Frontend runtime bundle** (non-dev npm packages): react, react-dom and scheduler, all MIT.
 
-**About MPL-2.0:** it is file-level weak copyleft. It only matters if those files are modified or redistributed, and here they are used unmodified as separate tool dependencies. **Re-audit if any MPL package becomes a runtime or bundled dependency.** BlueOak-1.0.0 and PSF-2.0 are permissive.
+All runtime licenses are permissive and compatible with Apache-2.0. Before the release audit at M11, a NOTICE file listing these packages and their licenses must ship with distributed builds.
+
+## Development and build-only dependencies
+
+These are installed locally for linting, testing and building. They are not shipped in the app bundle; only lockfiles that reference them are committed.
+
+| Ecosystem | Licenses found | Compatible? |
+|---|---|---|
+| Python dev extra | pytest, ruff, mypy, httpx2 and their dependencies. Licenses: MIT, BSD-2/3-Clause, Apache-2.0 OR BSD-2-Clause, **MPL-2.0 (pathspec)** | Yes |
+| npm (`frontend/package-lock.json`, 284 packages; all but 3 are dev) | MIT 223, Apache-2.0 18, ISC 13, BSD-2/3-Clause 11, **MPL-2.0 12** (lightningcss, via Vite and Tailwind), BlueOak-1.0.0 2, MIT-0 2, 0BSD 1, CC0-1.0 1 (mdn-data), **CC-BY-4.0 1 (caniuse-lite)** | Yes |
+
+**About MPL-2.0:** it is file-level weak copyleft. The packages are used unmodified as build tools, and their files do not end up in the bundle.
+
+**About CC-BY-4.0:** `caniuse-lite` is browser-support data that the build reads at build time. It is not bundled. Attribution would be required only if it were redistributed.
+
+**Re-audit** whenever a dependency moves into the runtime set.
 
 ## Copied materials and assets
 
@@ -28,7 +46,8 @@ These are installed locally for linting and testing. They are not redistributed 
 |---|---|---|
 | `LICENSE` | Official Apache License 2.0 text from https://www.apache.org/licenses/LICENSE-2.0.txt (sha256 `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`) | Apache's license text, meant to be included verbatim |
 | `docs/PROVIDER_CAPABILITIES.md` | Facts paraphrased from Google documentation, with links. Only API identifiers (model IDs, field names) are reproduced | No Google text or images copied |
-| Images, video, audio, fonts | None in the repository | n/a |
+| `docs/screenshots/m1/*.jpg` | Screenshots of this app, taken during M1 verification | Original project material |
+| Third-party images, video, audio, fonts | None in the repository | n/a |
 
 ## Re-audit triggers
 
