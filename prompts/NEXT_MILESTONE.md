@@ -1,0 +1,3 @@
+# Paste after reviewing and explicitly approving prior milestone
+
+Read `CLAUDE.md`, `.claude/skills/openfilm-development/SKILL.md`, `docs/MASTER_PLAN.md`, and `docs/MILESTONE_TRACKER.md`. Inspect git status and current tests. Implement ONLY the next milestone whose predecessor has my explicit approval. Before edits state scope, acceptance criteria, dependencies and any provider capability uncertainties. After implementation run tests and report exact evidence, costs and security findings. Update tracker truthfully, then STOP. Never start another milestone automatically; never make a paid provider request without explicit consent.
