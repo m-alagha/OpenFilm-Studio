@@ -18,3 +18,15 @@ Each milestone report must contain: scope, commits/diff, tests run/pass/fail, ma
 | Privacy | The captured outbound request contains no user data, keys or identifiers |
 | Non-blocking | The app starts and works fully with the network blocked and checks enabled |
 | Approval | No code path installs without the explicit approve action |
+
+## Release-gate tests (assigned milestones)
+
+| Requirement | Milestone | What must be proven |
+|---|---|---|
+| Data-directory lock | M1.5 | Real-process tests: a second instance is refused without touching the DB; no update or migration while locked; a crashed holder's lock does not block startup |
+| Persistent storage across updates | M1.5 (update tests), M11 (each real install type) | User-data directory and credentials unchanged after update and rollback, apart from verified migrations |
+| Persistent storage across uninstall | M11 | For each installer: uninstall keeps the data folder by default; removing it needs an explicit confirmed choice; reinstall reuses it. MSIX is blocked unless proven safe (`docs/RELEASE.md`) |
+| Cross-platform runtime | M11 | CI matrix on Windows, macOS and Linux runs `scripts/check.*`, `dev --smoke` and the update/rollback suite. Simulated-platform unit tests are not enough |
+| Browser-level E2E | M11 (gate), may start earlier | Playwright (or equivalent) with real browsers against the real backend: first run, loading/error/offline states, persistence across restart, newer-database refusal, update notification. M1 has only an HTTP-level E2E (`scripts/e2e_smoke.py`) plus manual browser checks |
+
+From M1 on, `scripts/e2e_smoke.py` also snapshots every file in the checkout before and after a full run, and fails if any file appears inside the app or repository.

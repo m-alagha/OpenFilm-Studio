@@ -20,7 +20,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dev  # noqa: E402
 
 ROOT = dev.ROOT
-SKIP_DIRS = {".git", ".venv", "node_modules", "dist", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+# Tooling caches and build output (not user data) are excluded from the snapshot.
+SKIP_DIRS = {
+    ".git", ".venv", "node_modules", "dist", "__pycache__",
+    ".pytest_cache", ".mypy_cache", ".ruff_cache",
+}  # fmt: skip
 
 
 def free_port() -> int:
@@ -48,19 +52,19 @@ def check(condition: bool, label: str) -> None:
         raise SystemExit(1)
 
 
-def repo_user_data_files() -> list[Path]:
-    found = []
+def repo_snapshot() -> set[str]:
+    """Every file in the checkout, so any new file written by the app is detected."""
+    files = set()
     for path in ROOT.rglob("*"):
-        if any(part in SKIP_DIRS for part in path.relative_to(ROOT).parts):
-            continue
-        if path.suffix in {".sqlite", ".sqlite3", ".db"} or path.name.endswith(".mock.json"):
-            found.append(path)
-    return found
+        rel = path.relative_to(ROOT)
+        if path.is_file() and not any(part in SKIP_DIRS for part in rel.parts):
+            files.add(rel.as_posix())
+    return files
 
 
 def main() -> int:
     dev.ensure_dependencies()
-    before = repo_user_data_files()
+    before = repo_snapshot()
     with tempfile.TemporaryDirectory(prefix="openfilm-e2e-") as tmp:
         data_dir = Path(tmp) / "data"
         ui = free_port()
@@ -107,7 +111,8 @@ def main() -> int:
         check(
             (data_dir / "openfilm.sqlite").is_file(), "database created in external data directory"
         )
-        check(repo_user_data_files() == before, "no user data written inside the repository")
+        added = sorted(repo_snapshot() - before)
+        check(not added, f"no files written inside the app/repository (new: {added or 'none'})")
     print("E2E SMOKE TEST PASSED")
     return 0
 

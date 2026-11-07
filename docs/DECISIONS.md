@@ -16,6 +16,8 @@
 | D12 | 2026-11-07 | **One-command dev start** is `scripts/dev.sh` or `scripts\dev.cmd`, wrapping the stdlib-only `scripts/dev.py`. Vite runs through `node` directly rather than the npm shim, so shutdown leaves no orphaned processes on Windows. `.cmd` instead of `.ps1` avoids the PowerShell execution policy. | ACCEPTED for M1 (pending review) |
 | D13 | 2026-11-07 | **No CORS.** The UI reaches the API same-origin, through the Vite proxy in development. Writes require the `X-OpenFilm-Client` header, and Host and Origin must be loopback. | ACCEPTED for M1 (pending review) |
 | D14 | 2026-11-07 | **`opentelemetry-api` is accepted as a FastAPI transitive dependency.** It is the no-op API with no SDK or exporter. A test forbids an SDK or exporter, and the server sets `OTEL_SDK_DISABLED=true`. | ACCEPTED for M1 (pending review) |
+| D15 | 2026-11-07 | **The official repository is `m-alagha/OpenFilm-Studio`** (https://github.com/m-alagha/OpenFilm-Studio). It is the only release source for the updater. Package metadata and docs point to it. Git history and remotes were not rewritten. | ACCEPTED (maintainer) |
+| D16 | 2026-11-07 | **Release gates assigned to milestones.** The data-directory lock goes to M1.5. Safe storage across update and uninstall, Windows MSIX as a blocker, cross-platform runtime verification and browser-level E2E are M11 release gates (`docs/RELEASE.md`). | ACCEPTED (maintainer request) |
 
 ## D2 toolchain details
 

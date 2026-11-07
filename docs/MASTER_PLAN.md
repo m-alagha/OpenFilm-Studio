@@ -32,7 +32,7 @@ One milestone at a time, in order M0, M1, M1.5, M2 … M11. M1.5 was added after
 ### M1.5 — In-app update manager (mandatory)
 
 **Update check**
-- A background check against the project's GitHub Releases. Stable releases only; drafts and prereleases are ignored.
+- A background check against the official repository's GitHub Releases (https://github.com/m-alagha/OpenFilm-Studio/releases). The repository is a single build-time constant and cannot be changed from the UI. Stable releases only; drafts and prereleases are ignored.
 - The GitHub API contract (endpoint, fields, rate limits) must be verified against official docs at implementation time. Do not code it from memory.
 - The check runs after startup, never blocks it, and uses a short timeout and a cached result.
 - Offline, rate-limited or failed checks are silent. They are logged locally only.
@@ -66,6 +66,12 @@ One milestone at a time, in order M0, M1, M1.5, M2 … M11. M1.5 was added after
 - Migrations run in a transaction.
 - The OS keychain credentials are never touched.
 
+**Data-directory lock (single instance)**
+- At startup, take an exclusive OS-level lock on a lock file in the data directory. Use a cross-platform advisory lock that is released automatically if the process dies.
+- A second instance on the same data directory must not open the database. Instead, it shows a clear "already running" message, or hands off to the running instance.
+- Never install or migrate while another instance holds the lock.
+- Stale locks left by crashed processes must not block startup.
+
 **Recovery and rollback**
 - Keep the previous app version and the pre-migration backup.
 - If an install, migration or health check fails, restore both automatically where possible. Otherwise show exact manual recovery steps.
@@ -81,6 +87,11 @@ Automated tests cover:
 - privacy: outbound request contains no user data or keys
 - non-blocking startup with the network blocked
 - no install without an explicit approval action
+- data-directory lock:
+  - a second instance (real processes) is refused without touching the DB
+  - updates and migrations are blocked while the lock is held
+  - a crashed holder does not leave a lock that blocks startup
+- persistent storage across updates: data directory, OS credentials and settings survive update and rollback unchanged (except verified migrations)
 
 A full end-to-end archive update between two real releases is re-verified at M11.
 
@@ -127,7 +138,14 @@ A full end-to-end archive update between two real releases is re-verified at M11
   - release notes
   - per-asset SHA-256 checksums plus a signature (the method verified at M1.5)
   - a published upgrade-path test
-- Acceptance: clean machine onboarding, passing CI, secrets scan, license audit, reproducible demo, tagged release candidate; in-app update from the previous release candidate to the new one preserves a fixture data directory, and rollback works.
+- **Mandatory release gates** (details in `docs/RELEASE.md` § Release blockers):
+  - **Safe persistent storage across updates and uninstallation.** Every supported install type (archive, installer, git, Docker) is tested for both:
+    - Update: preserves the user-data directory.
+    - Uninstall: never deletes user data by default. Removing it requires a separate, explicit, confirmed choice. Reinstalling picks the existing data back up.
+  - **Windows MSIX redirection is a release blocker.** If MSIX packaging is selected, release is blocked until data is proven to live outside the package's virtualized `LocalCache` and to survive uninstall. Otherwise use a non-MSIX installer.
+  - **Cross-platform runtime verification.** CI on Windows, macOS and Linux runs the full check suite, the one-command start (`--smoke`), the data-directory resolution and lock tests, and the update/rollback tests on each OS. Unit tests that simulate other platforms do not count.
+  - **Browser-level E2E.** Automated real-browser tests (Playwright or equivalent; at least Chromium plus one of Firefox or WebKit) against the real backend cover: first run, loading/error/offline states, data persistence across restart, newer-database refusal, and the update notification flow. They run in CI on all three OSes.
+- Acceptance: clean machine onboarding, passing CI, secrets scan, license audit, reproducible demo, tagged release candidate; in-app update from the previous release candidate to the new one preserves a fixture data directory, and rollback works; all mandatory release gates above pass with recorded evidence.
 
 ## Out of scope for V1
 Guaranteed face/voice identity, feature claims without provider support, automatic cloud billing enforcement, unlimited free generation, distributed multiuser hosting, autonomous paid generation.

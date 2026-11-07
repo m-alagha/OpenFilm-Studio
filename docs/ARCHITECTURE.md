@@ -38,7 +38,15 @@ Paths were confirmed at M1 (`backend/app/paths.py`).
 - **Windows uses `LOCALAPPDATA`, not roaming `APPDATA`.** Media can be large and must not sync through roaming profiles.
 - **Linux uses `XDG_DATA_HOME`** only when it is absolute, as the XDG spec requires.
 - **The app never writes user data inside the app directory.** At startup it refuses a data directory located inside the app or repository.
-- **MSIX caveat:** when OpenFilm Studio is started by an MSIX-packaged Windows app, Windows redirects AppData writes into that package's private `LocalCache`. Packaged-app uninstalls delete that folder. The M11 Windows installer must therefore not be an MSIX package that relies on AppData, or must use a non-virtualized location.
+- **MSIX is a mandatory release blocker.** When OpenFilm Studio runs as, or is started by, an MSIX-packaged Windows app, Windows redirects AppData writes into that package's private `LocalCache`. Packaged-app uninstalls delete that folder. If MSIX packaging is selected, release is blocked until data is proven to live outside the virtualized location and to survive uninstall (`docs/RELEASE.md` § Release blockers).
+- **Single instance per data directory.** A data-directory lock is required at M1.5. Until then, only the port check prevents two engines from sharing a data folder.
+- **Persistent write sites (audited at M1)** all resolve inside the data directory:
+  - the database (`openfilm.sqlite`)
+  - `backups/`
+  - `logs/`
+  - the data folder itself, created only outside the app
+
+  The UI uses no browser storage (no localStorage, sessionStorage, IndexedDB or cookies).
 
 ## Update manager (M1.5)
 

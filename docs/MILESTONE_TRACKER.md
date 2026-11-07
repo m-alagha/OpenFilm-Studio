@@ -7,7 +7,7 @@ Order: M0 → M1 → M1.5 → M2 … M11. M1.5 was inserted on 2026-11-07 at the
 | Milestone | Status | Evidence | Approval |
 |---|---|---|---|
 | M0 | ACCEPTED | See "M0 evidence" below | Maintainer, 2026-11-07, with conditions D1 and D3 |
-| M1 | IN_PROGRESS (implementation complete, awaiting user review; not committed) | See "M1 evidence" below | Pending |
+| M1 | ACCEPTED | See "M1 evidence" below | Maintainer, 2026-11-07, after final checks (repository identity, local-first audit, cleanup) |
 | M1.5 | NOT_STARTED (mandatory in-app update manager, added 2026-11-07) | — | — |
 | M2 | NOT_STARTED | — | — |
 | M3 | NOT_STARTED | — | — |
@@ -78,7 +78,12 @@ All checks were re-run before the M0 commit and passed.
 
 ## M1 evidence (2026-11-07)
 
-**Commit:** none. Per the maintainer's instruction, changes are uncommitted in the working tree on top of `3c3dec0`.
+**Commits:**
+
+- `900202a` ("add", committed by the maintainer): the reviewed M1 implementation, 68 files. It was verified after the fact to contain no build output, databases, logs or key-shaped strings.
+- A follow-up "M1 final checks" commit holds: the tracker set to ACCEPTED; the official-repository references; release-gate assignments; the stricter repository-snapshot E2E check; and the package-lock root version sync.
+
+Git history and remotes were not rewritten. Nothing was pushed by Claude.
 
 **Decisions recorded:** D8 and D9 are accepted as directed. D10–D14 were made during M1 and are pending review (see `docs/DECISIONS.md`).
 
@@ -141,12 +146,55 @@ In `docs/screenshots/m1/`:
 4. **Garbled launcher text on the Windows console.** The `…` character didn't render. Replaced with plain ASCII.
 5. **Incompatible-database message.** It started lowercase and repeated itself. Polished.
 
+### Final checks before acceptance (2026-11-07)
+
+**Repository identity**
+
+- The official repository is https://github.com/m-alagha/OpenFilm-Studio (D15).
+- No project file referenced the old owner `mousa-alagha`. The only occurrences are in git reflogs under `.git/logs`, which are history metadata and were left untouched as instructed. The `origin` remote already pointed to `m-alagha` and was not changed.
+- Added the official URL to: the README clone command, backend `[project.urls]`, frontend `homepage`, `repository` and `bugs`, and the M1.5 release source (MASTER_PLAN, RELEASE, CLAUDE.md).
+
+**Local-first audit**
+
+Every persistent write site in the app code resolves inside the data directory:
+
+- `db/engine.py`: the database
+- `db/backup.py`: `backups/`
+- `logging_setup.py`: `logs/`
+- `paths.py`: creates the data directory and refuses locations inside the app
+
+The UI uses no browser storage. The mock provider's `download(dest_dir)` is a developer tool and is not wired into the app.
+
+`scripts/e2e_smoke.py` now snapshots every file in the checkout, including git-ignored files, before and after a full run. It fails on any new file. Verified by planting a stray `.sqlite` file, which was detected.
+
+**Cleanup**
+
+- The test data folder at `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\OpenFilmStudio` was inspected read-only first:
+  - created 16:49:26 by server PID 33464, which was Claude's test run
+  - a second start at 16:50:46 (PID 34392), also Claude's test run
+  - last activity at 16:50:52
+  - the only setting was `ui.welcome_dismissed`, from Claude's test click
+  - `media/` and `backups/` empty, and no tables capable of holding user content
+- Confirmed as created only by M1 testing, so it was deleted by its explicit path. No other `OpenFilmStudio` data folder exists on the machine.
+- Claude's scratchpad test copies were also removed.
+
+**Requirements assigned to milestones (D16)**
+
+| Requirement | Milestone | Where it is specified |
+|---|---|---|
+| Data-directory lock | M1.5 | `MASTER_PLAN.md` |
+| Safe storage across updates | M1.5 and M11 | `MASTER_PLAN.md`, `RELEASE.md`, `TESTING.md` |
+| Safe storage across uninstall | M11 release gate | `MASTER_PLAN.md`, `RELEASE.md`, `TESTING.md` |
+| Windows MSIX (mandatory release blocker if MSIX is selected) | M11 release gate | `ARCHITECTURE.md`, `RELEASE.md` |
+| Cross-platform runtime verification | M11 release gate | `MASTER_PLAN.md`, `RELEASE.md`, `TESTING.md` |
+| Browser-level E2E | M11 release gate | `MASTER_PLAN.md`, `RELEASE.md`, `TESTING.md` |
+
 ### Known gaps and risks
 
-- **macOS and Linux runs** are not executed, only unit-tested via platform simulation. CI arrives at M11.
-- **No Playwright browser E2E.** `TESTING.md` lists Playwright, but browser downloads aren't feasible on this network. E2E coverage is a stdlib HTTP smoke test plus manual browser checks with screenshots. Revisit at M11.
+- **macOS and Linux runs** are not executed, only unit-tested via platform simulation. This is now an M11 release gate.
+- **No Playwright browser E2E.** `TESTING.md` lists Playwright, but browser downloads aren't feasible on this network. E2E coverage is a stdlib HTTP smoke test plus manual browser checks with screenshots. This is now an M11 release gate.
 - **Other local processes** running as the same user can call the API. That's out of the single-user threat model. A per-launch token is a candidate for M11.
-- **MSIX virtualization.** Processes started from the Claude desktop app had their AppData writes redirected to its package `LocalCache`. The M11 Windows installer must avoid this (see `ARCHITECTURE.md`).
+- **MSIX virtualization.** Processes started from the Claude desktop app had their AppData writes redirected to its package `LocalCache`. This is a mandatory release blocker if MSIX is selected (`RELEASE.md`).
 - **`npm audit`** still reports the dev-only minimatch advisory from M0. No runtime packages are affected.
 - **No production CSP for the UI yet.** It will be added when the backend serves the built UI (packaging, M11). The API already sends a restrictive CSP.
-- **No single-instance lock.** Two backends on the same data directory are prevented only by the port check.
+- **No single-instance lock yet.** Two backends on the same data directory are prevented only by the port check. The data-directory lock is assigned to M1.5.

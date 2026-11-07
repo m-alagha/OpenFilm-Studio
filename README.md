@@ -2,6 +2,8 @@
 
 Open-source, local-first AI filmmaking studio. You download it from GitHub, optionally configure a video-provider API key, create separate film or series projects, and generate short scenes from reusable characters, places, voices and references. Your data stays on your machine.
 
+**Official repository:** https://github.com/m-alagha/OpenFilm-Studio
+
 > **Status: M1 (local app bootstrap), a developer preview.** There is a local web app with a working engine, database and status screen. Creating films comes in later milestones. A one-click installer for non-technical users is planned for the public release (M11); for now, setup needs the developer tools below. See `docs/MILESTONE_TRACKER.md`.
 
 ## Provider status (verified 2026-11-07, docs only)
@@ -21,7 +23,7 @@ No API key or account is needed. The demo provider runs offline at no cost.
 ## Start OpenFilm Studio (one command)
 
 ```bash
-git clone <repo-url> OpenFilm-Studio
+git clone https://github.com/m-alagha/OpenFilm-Studio.git
 cd OpenFilm-Studio
 ```
 

@@ -58,6 +58,13 @@ follow these rules:
   rolled back.
 - Every schema change ships as a tested, forward-only migration, with a
   backup-based rollback path.
+- Uninstalling never deletes user data by default; removing it requires a
+  separate, explicit, confirmed choice.
+- Only one app instance may use a data directory at a time (data-directory
+  lock, M1.5).
+- Releases come only from the official repository, https://github.com/m-alagha/OpenFilm-Studio.
+- Release blockers in `docs/RELEASE.md` (including Windows MSIX, cross-platform
+  runtime checks and browser-level E2E) must all pass before any release.
 
 
 ## Non-negotiable rules

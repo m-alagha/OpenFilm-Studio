@@ -11,6 +11,12 @@ dependencies = [
     "alembic>=1.14",
 ]
 
+[project.urls]
+Homepage = "https://github.com/m-alagha/OpenFilm-Studio"
+Repository = "https://github.com/m-alagha/OpenFilm-Studio"
+Issues = "https://github.com/m-alagha/OpenFilm-Studio/issues"
+Releases = "https://github.com/m-alagha/OpenFilm-Studio/releases"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
