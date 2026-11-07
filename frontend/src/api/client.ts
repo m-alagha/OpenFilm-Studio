@@ -3,7 +3,7 @@
  * the local machine. The UI never calls AI providers and never handles keys.
  */
 
-import type { AppSettings, Health, SystemInfo } from "./types";
+import type { AppSettings, Health, SystemInfo, UpdateStatus } from "./types";
 
 export const CLIENT_HEADER = "X-OpenFilm-Client";
 export const REQUEST_TIMEOUT_MS = 8000;
@@ -25,7 +25,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: "GET" | "PUT";
+  method?: "GET" | "PUT" | "POST";
   body?: unknown;
   /** HTTP statuses whose JSON body is a valid result rather than an error. */
   acceptStatuses?: number[];
@@ -84,4 +84,11 @@ export const api = {
       method: "PUT",
       body: { value },
     }),
+  updates: () => request<UpdateStatus>("/api/updates"),
+  setUpdatePreferences: (prefs: { auto_check_enabled?: boolean; disclosure_acknowledged?: boolean }) =>
+    request<UpdateStatus>("/api/updates/preferences", { method: "PUT", body: prefs }),
+  checkForUpdates: () => request<UpdateStatus>("/api/updates/check", { method: "POST" }),
+  snoozeUpdate: () => request<UpdateStatus>("/api/updates/snooze", { method: "POST" }),
+  skipUpdate: (version: string) =>
+    request<UpdateStatus>("/api/updates/skip", { method: "POST", body: { version } }),
 };

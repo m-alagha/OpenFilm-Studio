@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Highest schema version this app understands. Must equal the head migration's
 # SCHEMA_VERSION (enforced by tests).
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 

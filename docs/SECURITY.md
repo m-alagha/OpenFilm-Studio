@@ -25,3 +25,23 @@ Validate file size, MIME and magic bytes; avoid executable uploads, traversal, z
 **Data safety**
 - DB backups and migrations are atomic.
 - Backups are checksummed. They are excluded from exports unless the user selects them, and they never contain API keys.
+
+### Implementation status (M1.5)
+
+All of the following are implemented and tested:
+
+- **Fixed, anonymous request:** three headers; no cookies, credentials or identifiers.
+- **Strict validation:** malformed or off-repository release metadata is rejected.
+- **Plain-text release notes:** control and bidi characters stripped.
+- **Redirects:** followed only to `api.github.com`.
+- **Response cap:** 2 MB.
+- **Commands:** built only from fixed templates plus a validated version.
+- **No downgrades:** only newer stable versions are offered.
+- **Authenticity:** Ed25519 manifest verification, fail-closed with no trusted key yet.
+- **Integrity:** checksum and size checks.
+- **Extraction:** zip-slip, link and zip-bomb rejection.
+- **Install refusal:** an install request is always refused (409).
+- **Single-instance lock.**
+- **Restore safety:** a restore keeps a copy of the current database.
+
+**Regression found during M1.5:** `re.match(... $)` accepts a trailing newline. Every whole-string validation now uses `fullmatch`, with tests.

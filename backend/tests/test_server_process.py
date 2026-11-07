@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import http.client
 import json
 import os
@@ -38,7 +39,12 @@ def request(port: int, method: str, path: str, body: object = None) -> tuple[int
 
 @contextmanager
 def server(data_dir: Path, port: int, **extra_env: str) -> Iterator[subprocess.Popen[bytes]]:
-    env = {**os.environ, "OPENFILM_DATA_DIR": str(data_dir), "OPENFILM_PORT": str(port)}
+    env = {
+        **os.environ,
+        "OPENFILM_DATA_DIR": str(data_dir),
+        "OPENFILM_PORT": str(port),
+        "OPENFILM_UPDATE_CHECK": "0",
+    }
     env.update(extra_env)
     proc = subprocess.Popen(
         [sys.executable, "-m", "app"],
@@ -124,3 +130,25 @@ def test_refuses_data_dir_inside_repository() -> None:
     assert result.returncode == 2
     assert "inside the application directory" in result.stderr
     assert not inside.exists()
+
+
+def test_second_instance_on_same_data_dir_is_refused(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    with server(data_dir, free_port()):
+        db = data_dir / "openfilm.sqlite"
+        before = hashlib.sha256(db.read_bytes()).hexdigest()
+        result = subprocess.run(
+            [sys.executable, "-m", "app"],
+            cwd=BACKEND_DIR,
+            env={**os.environ, "OPENFILM_DATA_DIR": str(data_dir),
+                 "OPENFILM_PORT": str(free_port()), "OPENFILM_UPDATE_CHECK": "0"},
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )  # fmt: skip
+        assert result.returncode == 3
+        assert "already running" in result.stderr
+        assert hashlib.sha256(db.read_bytes()).hexdigest() == before
+    # After the first instance stops (terminated, not cleanly closed), startup works again.
+    with server(data_dir, free_port()):
+        pass

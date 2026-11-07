@@ -27,6 +27,24 @@ Each milestone report must contain: scope, commits/diff, tests run/pass/fail, ma
 | Persistent storage across updates | M1.5 (update tests), M11 (each real install type) | User-data directory and credentials unchanged after update and rollback, apart from verified migrations |
 | Persistent storage across uninstall | M11 | For each installer: uninstall keeps the data folder by default; removing it needs an explicit confirmed choice; reinstall reuses it. MSIX is blocked unless proven safe (`docs/RELEASE.md`) |
 | Cross-platform runtime | M11 | CI matrix on Windows, macOS and Linux runs `scripts/check.*`, `dev --smoke` and the update/rollback suite. Simulated-platform unit tests are not enough |
+| One-click install, failed-install rollback, disk-full and health-check failure, backup retention (deferred from M1.5, D22) | M11 (gate) | Real signed packages installed and rolled back on each OS; retention never removes the newest verified backups |
 | Browser-level E2E | M11 (gate), may start earlier | Playwright (or equivalent) with real browsers against the real backend: first run, loading/error/offline states, persistence across restart, newer-database refusal, update notification. M1 has only an HTTP-level E2E (`scripts/e2e_smoke.py`) plus manual browser checks |
 
 From M1 on, `scripts/e2e_smoke.py` also snapshots every file in the checkout before and after a full run, and fails if any file appears inside the app or repository.
+
+### M1.5 coverage of the update-manager table
+
+**Database-safety regressions** (`backend/tests/test_database_safety.py`, added in the final review):
+
+- No SQLite write transaction is open while GitHub is contacted (manual, automatic and API paths). Checked with a zero-timeout writer.
+- Concurrent update checks plus readers never deadlock, and the network is called one request at a time.
+- Background loop and parallel API checks together return only 200 responses.
+- The lock is released after app shutdown and after a normal process exit.
+- Restore aborts with the database untouched if a safety copy can't be made.
+- A corrupt current database is preserved byte for byte, with its checksum verified, before restore.
+- Leftover journals are moved aside, never replayed or deleted.
+
+Every area in the table above is covered by `backend/tests/test_update_*.py`, `test_datalock_recovery.py`, `test_server_process.py`, and `frontend/src/components/updates/UpdateCenter.test.tsx`. Exceptions:
+
+- **"Disk full" and "health-check failure"** cannot be tested, because no download or install step exists yet: one-click is disabled (D21). They move to M11 together with one-click installation.
+- **"Rollback: previous app version restored"** is covered by guided git steps plus a tested DB restore. Automatic app-folder rollback needs one-click and moves to M11.

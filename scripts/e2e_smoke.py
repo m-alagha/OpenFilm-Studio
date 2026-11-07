@@ -68,7 +68,8 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="openfilm-e2e-") as tmp:
         data_dir = Path(tmp) / "data"
         ui = free_port()
-        env = {"OPENFILM_DATA_DIR": str(data_dir)}
+        # Offline by design: update checks are switched off for the smoke test.
+        env = {"OPENFILM_DATA_DIR": str(data_dir), "OPENFILM_UPDATE_CHECK": "0"}
         print(f"e2e: ui=:{ui} data={data_dir}")
         with dev.running(free_port(), ui, env) as servers:
             status, html = call(ui, "GET", "/")
@@ -93,6 +94,22 @@ def main() -> int:
             )
             check(
                 status == 200 and json.loads(body)["ui.welcome_dismissed"] is True, "setting saved"
+            )
+
+            status, body = call(ui, "GET", "/api/updates")
+            updates = json.loads(body)
+            check(
+                status == 200
+                and updates["disabled_by_environment"] is True
+                and updates["install"]["one_click_supported"] is False,
+                "update status served; checks off; one-click disabled",
+            )
+            status, body = call(
+                ui, "POST", "/api/updates/install", None, {**write, "X-OpenFilm-Client": "web"}
+            )
+            check(
+                status == 409 and json.loads(body)["error"]["code"] == "ONE_CLICK_UNSUPPORTED",
+                "install request refused (nothing downloaded)",
             )
 
             servers.stop_backend()

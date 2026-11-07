@@ -171,16 +171,16 @@ FAILING_MIGRATION = """
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0003"
-down_revision = "0002"
+revision = "9999"
+down_revision = "{head}"
 branch_labels = None
 depends_on = None
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = {next_schema}
 
 
 def upgrade() -> None:
     op.create_table("half_done", sa.Column("id", sa.Integer(), primary_key=True))
-    op.execute("UPDATE app_meta SET value = '3' WHERE key = 'schema_version'")
+    op.execute("UPDATE app_meta SET value = '{next_schema}' WHERE key = 'schema_version'")
     raise RuntimeError("simulated migration failure")
 
 
@@ -199,9 +199,11 @@ def test_failed_migration_rolls_back_and_keeps_backup(
 
     migrations = tmp_path / "migrations"
     shutil.copytree(migrate.MIGRATIONS_DIR, migrations)
-    (migrations / "versions" / "0003_failing.py").write_text(FAILING_MIGRATION, encoding="utf-8")
+    head = head_revision()  # the real head, before the failing migration is added
+    failing = FAILING_MIGRATION.format(head=head, next_schema=SCHEMA_VERSION + 1)
+    (migrations / "versions" / "9999_failing.py").write_text(failing, encoding="utf-8")
     monkeypatch.setattr(migrate, "MIGRATIONS_DIR", migrations)
-    monkeypatch.setattr(migrate, "SCHEMA_VERSION", 3)
+    monkeypatch.setattr(migrate, "SCHEMA_VERSION", SCHEMA_VERSION + 1)
 
     with pytest.raises(RuntimeError, match="simulated migration failure"):
         open_database(engine, path, backups)
@@ -215,9 +217,9 @@ def test_failed_migration_rolls_back_and_keeps_backup(
     finally:
         conn.close()
     assert "half_done" not in tables
-    assert version == "0002"
-    assert meta(path, "schema_version") == "2"
+    assert version == head
+    assert meta(path, "schema_version") == str(SCHEMA_VERSION)
     assert sha256_file(path) == before
     # A verified pre-migration backup exists for recovery.
     (backup,) = backups.glob("*.sqlite")
-    assert meta(backup, "schema_version") == "2"
+    assert meta(backup, "schema_version") == str(SCHEMA_VERSION)

@@ -8,7 +8,7 @@ Order: M0 → M1 → M1.5 → M2 … M11. M1.5 was inserted on 2026-11-07 at the
 |---|---|---|---|
 | M0 | ACCEPTED | See "M0 evidence" below | Maintainer, 2026-11-07, with conditions D1 and D3 |
 | M1 | ACCEPTED | See "M1 evidence" below | Maintainer, 2026-11-07, after final checks (repository identity, local-first audit, cleanup) |
-| M1.5 | NOT_STARTED (mandatory in-app update manager, added 2026-11-07) | — | — |
+| M1.5 | ACCEPTED | See "M1.5 evidence" below | Maintainer, 2026-11-07, conditional approval and final review; deferred items are M11 gates (D22) |
 | M2 | NOT_STARTED | — | — |
 | M3 | NOT_STARTED | — | — |
 | M4 | NOT_STARTED | — | — |
@@ -198,3 +198,156 @@ The UI uses no browser storage. The mock provider's `download(dest_dir)` is a de
 - **`npm audit`** still reports the dev-only minimatch advisory from M0. No runtime packages are affected.
 - **No production CSP for the UI yet.** It will be added when the backend serves the built UI (packaging, M11). The API already sends a restrictive CSP.
 - **No single-instance lock yet.** Two backends on the same data directory are prevented only by the port check. The data-directory lock is assigned to M1.5.
+
+## M1.5 evidence (2026-11-07)
+
+**Commit:** the M1.5 implementation and documentation are committed on top of `c937316` as a single commit, not pushed. The hash is in the final report; a commit can't contain its own hash.
+
+**Design and evidence:** `docs/UPDATES.md` has the GitHub API contract (verified 2026-11-07) and the Sigstore-vs-Ed25519 evaluation. Decisions D17–D21 were accepted after the final review; D22 records the deferrals.
+
+### Acceptance criteria
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Non-blocking background checks | PASS | An asyncio task runs after startup, with the check in a worker thread. `test_startup_is_not_blocked_by_a_hanging_network` (hung fetch; health responds in under 3 s) and `test_offline_background_failure_never_breaks_the_app` |
+| Stable releases only | PASS | Drafts, prereleases and SemVer pre-release tags are filtered out. Release-parsing tests; the demo showed `0.3.0-rc.1` ignored |
+| Semantic version comparison | PASS | SemVer 2.0, including the semver.org §11 ordering example, build metadata, and invalid tags (a trailing-newline bug was found and fixed) |
+| Notification: version, notes, size | PASS | Current and new version, plain-text notes, release date, and per-OS/arch asset size. Screenshot 02 |
+| Update Now / Remind Me Later / Skip Version | PASS (honest label) | Snooze lasts 3 days. Skip hides only that version. The primary action reads **How to Update** because one-click is unsupported; it reads "Update Now" only when `one_click_supported` (tested) |
+| Manual check; configurable checks | PASS | "Check for Updates" (throttled to once a minute after a success); auto-check toggle; `OPENFILM_UPDATE_CHECK=0` |
+| Offline without blocking | PASS | Offline, timeout, HTTP errors, oversized responses and bad redirects are recorded and shown calmly. The app keeps working. The manual check is disabled while offline |
+| No project data or keys sent | PASS | `test_request_is_fixed_anonymous_and_minimal`: fixed URL, three fixed headers, no body or cookies; secret environment values absent. No request before the first-run disclosure (D8/D20) |
+| No download or execution without approval | PASS | Nothing downloads release assets. `POST /api/updates/install` always returns 409 and downloads nothing (API and E2E tests) |
+| Platform-aware; packaged / git / docker distinguished | PASS | Detects git, docker, packaged and source installs. Commands differ for Windows, macOS and Linux. Screenshot 03 (a real git checkout) |
+| Git and Docker instructions | PASS | Git: official-remote check, clean-tree check, fetch tags, checkout tag, restart (the launcher reinstalls when lockfiles change). Docker: keep the volume, never `down -v`, set the tag, pull and up |
+| Verified packaged installation | NOT IMPLEMENTED (by rule) | No signed installers exist, so no supported, tested mechanism exists. One-click is disabled (D21) |
+| Release integrity and authenticity | PASS (building blocks; fails closed) | Ed25519 manifest: valid, tampered, wrong key, untrusted key, malformed, wrong repo or product, version mismatch, downgrade, pre-release. Artifact size and SHA-256. No trusted key yet, so `NO_TRUSTED_KEYS` |
+| Sigstore and Ed25519 evaluated | PASS | `docs/UPDATES.md` § Release authenticity; D18 |
+| Malicious URLs, traversal, invalid manifests | PASS | 17 malicious-release cases, 4 redirect cases, 7 malicious-archive entries, tar links and traversal, zip bombs, hostile release URLs kept out of commands |
+| Downgrade prevention | PASS | Never offers equal or older versions. The manifest rejects downgrades. Rollback only through restoring a verified backup |
+| Cross-platform data-directory lock | PASS (Windows executed) | `msvcrt` / `flock`. Real two-process test: the second engine exits with code 3 and the DB hash is unchanged. A crashed holder doesn't block startup. A locked folder is never opened or migrated |
+| Backup before migration; transactional migrations | PASS | Verified backup, then one transaction. Failing-migration rollback test. A real M1 to M1.5 upgrade took a verified backup |
+| Update failure recovery | PASS | `python -m app.recovery list/restore`: needs the lock, verifies checksum and schema, needs explicit confirmation (`RESTORE` or `--yes`), keeps a safety copy, touches no other files |
+| Data preservation verification | PASS | `app/integrity.py` fingerprint. Tests and a real cross-version cycle (below) showed media and settings files unchanged |
+| No user-data deletion; confirmation before destructive actions | PASS | Updates and restores never delete user files. Backups are never pruned automatically |
+| UI: notification, notes, versions, actions, settings, manual check, guidance, loading/offline/error states | PASS | 16 update-UI tests (19 including parameterised cases). Screenshots 01–04 |
+| Tests offline with mocked network | PASS | Network is blocked in tests except loopback. All GitHub interactions are faked |
+
+### Real cross-version verification
+
+`c937316` (M1) was exported to a scratch folder; this repository's git state was not touched.
+
+1. The M1 engine created a schema-2 data folder. A setting was saved and media files were added.
+2. **The M1.5 engine opened it:** schema 3, a verified `pre-migrate-0002-to-0003` backup, the setting preserved, and media byte-identical.
+3. A second M1.5 engine on the same folder was refused with exit 3.
+4. **The old M1 engine** on the upgraded folder was refused with `DB_NEWER_SCHEMA`, and the data was not modified.
+5. **Recovery restore** of the pre-migration backup succeeded, and a safety copy was kept.
+6. **M1 ran again** with schema 2 and the setting intact.
+7. Across the whole cycle, no user file was removed or modified; only 4 backup files were added.
+
+### Checks
+
+| Gate | Result |
+|---|---|
+| `bash scripts/check.sh` and `scripts\check.ps1` | ALL CHECKS PASSED |
+| Backend pytest | **282 passed**: 186 new, 96 from M0/M1 (final review) |
+| Frontend Vitest | **38 passed**: 19 new, 19 from before |
+| ruff, ruff format, mypy `--strict` (60 files), ESLint, `tsc` (app and config), production build | Clean |
+| E2E smoke (real servers, through the proxy) | **11/11**, including update status and the refused install |
+| Clean install of a fresh copy (130 files) | `dev.sh --smoke`, then `check.sh`, passed. Lockfile stamps were written |
+| Secret scan | 130 files, 0 findings. No private key material in the tree |
+| `npm audit --omit=dev` | 0 vulnerabilities in runtime packages. The 10 moderate findings are the known dev-only minimatch advisory |
+| `pip-audit` (Python runtime closure) | No known vulnerabilities |
+
+**Per-file test counts**
+
+- Backend: `test_update_version_releases` 44, `test_update_verify` 32, `test_update_service` 28, `test_update_github` 20, `test_update_install` 19, `test_update_api` 14, `test_datalock_recovery` 14, `test_server_process` 5 (+1), `test_dev_launcher` 1, `test_migrations` 11 (updated)
+- Frontend: `UpdateCenter.test` 16 (19 cases), plus updated fakes
+
+### Screenshots
+
+In `docs/screenshots/m1.5/`:
+
+- `01-first-run-disclosure.jpg`
+- `02-update-available-release-notes.jpg`
+- `03-git-update-guide.jpg`
+- `04-settings-after-skip.jpg`
+
+They use a fake v0.2.0 release served from a scratch script outside the repository, injected through the test seam. No real GitHub request was made.
+
+### Spend and dependencies
+
+- **Spend:** $0.00. No provider or GitHub API calls were made by the app.
+- **New runtime dependency:** `cryptography` (Apache-2.0 OR BSD-3-Clause), with `cffi` (MIT-0) and `pycparser` (BSD-3-Clause).
+- **Dev dependencies:** unchanged.
+
+### Defects found and fixed during M1.5
+
+1. **Trailing-newline bypass.** `re.match` with `$` accepted a trailing newline (for example `1.2.3\n` or `evil.zip\n`). All whole-string validators now use `fullmatch`; regression tests added.
+2. **SQLite deadlock.** Found in the real browser: React StrictMode's concurrent first requests failed with "database is locked". Fixed with `BEGIN IMMEDIATE`, by creating the state row in the migration (reads never write), and by never holding a DB transaction during the network call. A regression test fails without the fix (6 lock errors).
+3. **Zip entries with bare permission bits** were wrongly rejected. Fixed.
+4. **Launcher reinstall.** It only installed dependencies on first run, so after a git update stale dependencies would remain. It now reinstalls whenever a lockfile hash changes.
+5. **Layout.** The home cards shrank inside the new column. Fixed.
+
+### Known gaps and risks
+
+- **One-click installation is not implemented** (by rule, D21). Disk-full, health-check-failure and automatic app-folder rollback tests move to M11 with it.
+- **No release key exists yet.** Verification fails closed. The M11 key ceremony must generate, store and pin it and set up CI signing. Losing the key would require a key rotation release.
+- **Backups are never pruned.** The plan's "configurable number of backups" is deferred (D21); disk usage grows with each schema upgrade.
+- **The app version was not bumped.** `__version__` and `package.json` are still `0.1.0` for both M1 and M1.5. The maintainer should set the version when tagging a release, because the updater compares it.
+- **Live GitHub behavior is unverified.** The repository has no releases. Redirect handling and the `digest` format are undocumented (see `docs/UPDATES.md`).
+- **Only Windows was executed.** macOS and Linux locking (`flock`) and the launchers are untested on real systems (M11 release gate).
+- **Docker guidance is generic** until an official image exists (M11).
+
+### Final review before acceptance (2026-11-07)
+
+**Decisions D17–D21 were checked against the code and earlier decisions.**
+
+- **One conflict found and fixed (D20 vs D8).** A manual "Check for Updates" click had marked the first-run disclosure as answered. Because automatic checks default to on, one click would silently enable daily checks. Now:
+  - A manual check is a single request the user asked for.
+  - Automatic checks run only after the disclosure is answered.
+  - The background check re-verifies consent and the setting inside its own transaction.
+  - Two regression tests were added. D8 itself is unchanged.
+- **Stale labels corrected.** D10–D14 still read "pending review" although M1 was accepted; their status labels were updated. No decision content changed.
+- **No other conflicts** with the local-first, security, update or release requirements:
+  - The updater is the only outbound call besides the selected AI provider and package installs, as `CLAUDE.md` allows.
+  - It needs disclosure and can be disabled.
+  - It sends no user data, never installs anything, and touches no user files.
+
+**Database safety (regression tests in `backend/tests/test_database_safety.py`).**
+
+- **No network inside write transactions:** while the fetch runs, a zero-timeout writer can take `BEGIN IMMEDIATE`. Tested on the manual, automatic and HTTP API paths.
+- **No deadlock:** 6 concurrent checkers and 4 readers all finish with no errors, and only one network request runs at a time. The background loop plus parallel API checks return only 200 responses. The earlier test reproduces the original "database is locked" failure without the fix.
+- **Atomic migrations:** the failing-migration test leaves nothing applied, and the verified backup remains.
+- **Lock across processes:** tested with real processes. The lock is released after app shutdown, after a normal exit without an explicit release, and after a hard kill.
+- **Recovery fixes:**
+  1. A restore over a **corrupt** database previously failed and so blocked recovery: the safety backup's integrity check failed, and SQLite cannot write into a damaged file. Now the damaged file is preserved byte for byte with a verified SHA-256. The restored database is built in a temporary file and swapped in atomically.
+  2. Leftover journal files are moved next to the safety copy, never replayed onto the restored database and never deleted.
+  3. If no safety copy can be made, the restore aborts and the database is byte-identical.
+
+**Security sweep.**
+
+- Secret scan: 131 files, 0 findings. No private keys or tokens in the tree; test signing keys are generated at runtime.
+- **One outbound call site:** the fixed anonymous GitHub request.
+- **One-click stays off:** it is never enabled, there are no download or install functions, `TRUSTED_RELEASE_KEYS` is empty, and `/api/updates/install` returns 409.
+- **Destructive operations are all intentional:** truncating our own lock file, deleting recovery's own temp file, moving journals, and replacing the database only after a verified safety copy and an explicit `RESTORE` or `--yes`.
+
+**Deferred to M11 as mandatory release gates (D22; `MASTER_PLAN` M11, `RELEASE.md` blockers 5–11, `TESTING.md`):**
+
+1. Signed, verified packaged updates
+2. Tested one-click installation for supported packaged formats
+3. Safe rollback after failed installations
+4. Configurable backup retention with safe defaults
+5. Windows, macOS and Linux runtime verification
+6. Real-browser automated E2E
+
+**Final gates:**
+
+| Gate | Result |
+|---|---|
+| Backend pytest | 282 passed |
+| Frontend Vitest | 38 passed |
+| ruff, mypy `--strict` (61 files), ESLint, `tsc`, production build | Clean |
+| E2E smoke | 11/11 |
+| Secret scan | 0 findings |
+| `check.sh` and `check.ps1` | ALL CHECKS PASSED |

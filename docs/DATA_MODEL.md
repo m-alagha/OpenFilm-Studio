@@ -30,3 +30,19 @@ Update-related state stores no credentials. Backups live under the user-data dir
 - Alembic's `alembic_version` table.
 
 Migrations live in `backend/app/db/migrations/versions/`. Each one bumps `SCHEMA_VERSION` (tests enforce this).
+
+**Implemented at M1.5 (schema version 3):** `update_state` holds:
+
+- `id` (always 1)
+- `auto_check_enabled`
+- `disclosure_acknowledged`
+- `last_checked_at`
+- `last_check_status`
+- `retry_not_before`
+- `latest_release_json` (validated release cache)
+- `skipped_version`
+- `snoozed_until`
+
+The row is created by migration `0003`.
+
+**Deviation from the plan:** `DbBackup` is not a table. Backups are tracked as files in `backups/`, each with a `.sha256` sidecar file. The recovery tool reads the schema version from the file itself, so backup records can never drift from the actual files.

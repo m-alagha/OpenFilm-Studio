@@ -22,6 +22,8 @@ def make_engine(db_path: Path) -> Engine:
 
     @event.listens_for(engine, "begin")
     def _on_begin(conn: Connection) -> None:
-        conn.exec_driver_sql("BEGIN")
+        # IMMEDIATE takes the write lock up front, so concurrent read-then-write
+        # transactions queue (busy_timeout) instead of deadlocking with SQLITE_BUSY.
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine

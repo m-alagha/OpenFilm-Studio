@@ -4,7 +4,7 @@ Open-source, local-first AI filmmaking studio. You download it from GitHub, opti
 
 **Official repository:** https://github.com/m-alagha/OpenFilm-Studio
 
-> **Status: M1 (local app bootstrap), a developer preview.** There is a local web app with a working engine, database and status screen. Creating films comes in later milestones. A one-click installer for non-technical users is planned for the public release (M11); for now, setup needs the developer tools below. See `docs/MILESTONE_TRACKER.md`.
+> **Status: M1.5 (update manager), a developer preview.** There is a local web app with a working engine, database and status screen. Creating films comes in later milestones. A one-click installer for non-technical users is planned for the public release (M11); for now, setup needs the developer tools below. See `docs/MILESTONE_TRACKER.md`.
 
 ## Provider status (verified 2026-11-07, docs only)
 
@@ -79,6 +79,33 @@ The app shows the exact path on its home screen. To use another location, set `O
 | `OPENFILM_UI_PORT` | `5173` | App (UI) port on 127.0.0.1 |
 | `OPENFILM_HOST` | `127.0.0.1` | Bind address. Anything other than loopback is refused unless `OPENFILM_ALLOW_NON_LOOPBACK=1` (for isolated containers only; the API has no authentication) |
 
+## Updates
+
+OpenFilm Studio can tell you when a new version is out. The details are in [`docs/UPDATES.md`](docs/UPDATES.md).
+
+- **First run:** you choose whether to check automatically (about once a day). No automatic check runs before you answer, and the **Check for Updates** button checks once, only when you click it. Only public release information is requested from GitHub; your projects, settings and keys are never sent.
+- **When an update is available:**
+  - **How to Update** shows step-by-step instructions for your installation (git, Docker or a downloaded folder).
+  - **Remind Me Later** hides the notification for 3 days.
+  - **Skip This Version** hides that version; newer ones still show.
+- **Nothing is downloaded or installed automatically.** One-click updates stay off until signed installers are published.
+- **Your data folder is never touched by an update.** Before any database upgrade, a verified backup is saved in `backups/`.
+- **To turn checks off:** use Settings → Updates, or set `OPENFILM_UPDATE_CHECK=0`.
+
+### Recover from a failed update
+
+Close OpenFilm Studio, then run:
+
+```bash
+uv run --project backend python -m app.recovery list
+```
+
+```bash
+uv run --project backend python -m app.recovery restore <backup-file-name>
+```
+
+The restore asks for confirmation and saves your current database as a new backup first. Media files are never touched.
+
 ## Check everything (developers)
 
 Install the dev dependencies first:
@@ -127,6 +154,7 @@ It prints `ALL CHECKS PASSED` on success.
 | **uv cannot use a Microsoft Store Python** | Run `uv python install 3.12`, or install Python from python.org. |
 | **`uv` / `node` not found** | Install them from the links under Requirements, then open a new terminal. |
 | **PowerShell blocks `check.ps1`** | Run it with `powershell -ExecutionPolicy Bypass -File scripts\check.ps1`. `dev.cmd` needs no policy change. |
+| **"OpenFilm Studio is already running with this data folder"** | Another OpenFilm Studio window is using the same data folder. Close it first. Two copies can't share one data folder. |
 | **Start over with empty data** | Stop the app and rename your data folder (don't delete it until you're sure). A fresh one is created on the next start. |
 
 ## Secrets and data

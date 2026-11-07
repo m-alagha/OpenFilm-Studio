@@ -53,7 +53,7 @@ One milestone at a time, in order M0, M1, M1.5, M2 … M11. M1.5 was added after
 **Install-type detection, and safe update paths for each**
 - **Git checkout:** show instructions (clean-tree check, fetch tags, verify tag, checkout, reinstall with lockfiles, migrate). An optional approved one-click flow is allowed only when the working tree is clean and the tag is verified.
 - **Docker:** show instructions only (pull pinned image tag or digest, recreate the container; data stays on its volume). The app never controls Docker from inside the container.
-- **Release archive:** one-click update where technically possible:
+- **Release archive:** one-click update where technically possible *(deferred to M11 as a mandatory release gate, D22; M1.5 ships only the tested verification building blocks, and one-click stays disabled)*:
   1. Download to a staging directory.
   2. Verify the SHA-256 checksum and the release signature. The signing method is chosen and verified at M1.5 and published by M11.
   3. Extract safely (no zip-slip or symlinks).
@@ -75,7 +75,7 @@ One milestone at a time, in order M0, M1, M1.5, M2 … M11. M1.5 was added after
 **Recovery and rollback**
 - Keep the previous app version and the pre-migration backup.
 - If an install, migration or health check fails, restore both automatically where possible. Otherwise show exact manual recovery steps.
-- Keep a configurable number of backups.
+- Keep a configurable number of backups *(deferred to M11, D22; until then backups are never deleted automatically)*.
 
 **Acceptance**
 Automated tests cover:
@@ -139,6 +139,13 @@ A full end-to-end archive update between two real releases is re-verified at M11
   - per-asset SHA-256 checksums plus a signature (the method verified at M1.5)
   - a published upgrade-path test
 - **Mandatory release gates** (details in `docs/RELEASE.md` § Release blockers):
+  - **Deferred from M1.5 (D22)** — each needs tests and recorded evidence:
+    1. Signed, verified packaged updates: release key ceremony, CI signing, and `openfilm-release.json` plus `.sig` published per release.
+    2. Tested one-click installation for every supported packaged format: download to staging, verify signature and checksum, safe extraction, side-by-side install, health check, switch.
+    3. Safe rollback after a failed installation: previous app version and pre-migration backup restored automatically. Tests cover disk-full, interrupted download, failed migration and failed health check.
+    4. Configurable backup retention with safe defaults: never delete the newest verified backups, and require confirmation before pruning.
+    5. Windows, macOS and Linux runtime verification (below).
+    6. Real-browser automated E2E (below).
   - **Safe persistent storage across updates and uninstallation.** Every supported install type (archive, installer, git, Docker) is tested for both:
     - Update: preserves the user-data directory.
     - Uninstall: never deletes user data by default. Removing it requires a separate, explicit, confirmed choice. Reinstalling picks the existing data back up.

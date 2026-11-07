@@ -5,6 +5,7 @@ import {
   OfflineBanner,
   UnreachableScreen,
 } from "./components/StatusScreens";
+import { UpdateCenter } from "./components/updates/UpdateCenter";
 import { useBackend } from "./hooks/useBackend";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
@@ -28,7 +29,9 @@ export function App() {
         {state.phase === "unreachable" && <UnreachableScreen error={state.error} onRetry={retry} />}
         {state.phase === "incompatible" && <IncompatibleDatabaseScreen health={state.health} />}
         {state.phase === "ready" && (
-          <Home system={state.system} settings={state.settings} onSettingsChange={updateSettings} />
+          <UpdateCenter online={online}>
+            <Home system={state.system} settings={state.settings} onSettingsChange={updateSettings} />
+          </UpdateCenter>
         )}
       </main>
     </div>

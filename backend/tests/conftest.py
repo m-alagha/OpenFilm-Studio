@@ -7,6 +7,7 @@ can talk to a real local server process.
 from __future__ import annotations
 
 import ipaddress
+import json
 import socket
 from collections.abc import Iterator
 from pathlib import Path
@@ -75,3 +76,59 @@ def settings(tmp_path: Path) -> Settings:
 def client(settings: Settings) -> Iterator[TestClient]:
     with TestClient(create_app(settings), base_url="http://127.0.0.1:8765") as test_client:
         yield test_client
+
+
+# --- update-manager helpers (all offline) -------------------------------------
+
+REPO_URL = "https://github.com/m-alagha/OpenFilm-Studio"
+
+
+def release_json(
+    tag: str,
+    *,
+    draft: Any = False,
+    prerelease: Any = False,
+    body: Any = "Notes",
+    assets: Any = None,
+    **overrides: Any,
+) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "tag_name": tag,
+        "name": f"OpenFilm Studio {tag}",
+        "body": body,
+        "draft": draft,
+        "prerelease": prerelease,
+        "published_at": "2026-11-01T10:00:00Z",
+        "html_url": f"{REPO_URL}/releases/tag/{tag}",
+        "assets": [] if assets is None else assets,
+    }
+    data.update(overrides)
+    return data
+
+
+def asset_json(tag: str, name: str, size: Any = 1234, **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "name": name,
+        "size": size,
+        "browser_download_url": f"{REPO_URL}/releases/download/{tag}/{name}",
+        "digest": "sha256:" + "a" * 64,
+    }
+    data.update(overrides)
+    return data
+
+
+class FakeFetcher:
+    """Records calls; returns a payload or raises the configured error."""
+
+    def __init__(self, payload: object = None, error: Exception | None = None) -> None:
+        self.payload: object = [] if payload is None else payload
+        self.error = error
+        self.calls = 0
+
+    def __call__(self) -> bytes:
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        if isinstance(self.payload, bytes):
+            return self.payload
+        return json.dumps(self.payload).encode()

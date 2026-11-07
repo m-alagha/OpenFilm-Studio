@@ -8,7 +8,9 @@ Choose and include verified license and third-party notices; confirm project nam
 
 - Use SemVer tags `vX.Y.Z`. Mark prereleases as GitHub prereleases. Stable releases must not be drafts.
 - Release notes go in the release body.
-- Each downloadable asset ships with a SHA-256 checksum file and a signature, using the method verified at M1.5.
+- Each release publishes `openfilm-release.json` (asset names, platforms, SHA-256 and sizes) and `openfilm-release.json.sig` (an Ed25519 signature by the pinned release key). The format is in `docs/UPDATES.md`.
+- Generate GitHub artifact attestations (Sigstore) in CI as additional provenance.
+- Name platform assets `OpenFilm-Studio-<version>-<os>-<arch>.<zip|tar.gz>`, with os in `windows`, `macos` or `linux` and arch in `x64` or `arm64`.
 - Document the update procedure per install type: git, Docker and archive.
 - Before tagging, run the upgrade test from the previous release with a fixture user-data directory.
 
@@ -21,3 +23,10 @@ Choose and include verified license and third-party notices; confirm project nam
 5. **Single instance per data directory.** The data-directory lock (M1.5) is verified on all three OSes.
 6. **Cross-platform runtime verification.** The full checks, launcher smoke and update/rollback tests pass in CI on Windows, macOS and Linux.
 7. **Browser-level E2E.** Real-browser tests pass on all three OSes (see `docs/TESTING.md`).
+8. **Signed, verified packaged updates** (deferred from M1.5, D22):
+   - The release key exists, held offline or in CI secrets and never in the repository.
+   - Its public key is pinned in `TRUSTED_RELEASE_KEYS`.
+   - Every release publishes a signed `openfilm-release.json`.
+9. **Tested one-click installation** for each supported packaged format: verify, extract safely, install side by side, health check, switch. Until then, one-click stays disabled.
+10. **Safe rollback after a failed installation:** automatic restore of the previous app version and the pre-migration backup. Tested for failure at every step.
+11. **Configurable backup retention with safe defaults.** It never removes the newest verified backups, and prunes only with confirmation.

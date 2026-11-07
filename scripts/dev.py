@@ -13,6 +13,7 @@ Standard library only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import http.client
 import os
 import shutil
@@ -53,19 +54,45 @@ def require_tool(name: str, hint: str) -> str:
     return path
 
 
+STAMP_NAME = ".openfilm-lock.sha256"
+
+
+def lock_hash(lockfile: Path) -> str:
+    return hashlib.sha256(lockfile.read_bytes()).hexdigest()
+
+
+def needs_install(env_dir: Path, lockfile: Path) -> bool:
+    """True on first run or when the lockfile changed (e.g. after updating via git)."""
+    stamp = env_dir / STAMP_NAME
+    return not stamp.is_file() or stamp.read_text(encoding="utf-8").strip() != lock_hash(lockfile)
+
+
+def write_stamp(env_dir: Path, lockfile: Path) -> None:
+    (env_dir / STAMP_NAME).write_text(lock_hash(lockfile) + "\n", encoding="utf-8")
+
+
 def ensure_dependencies() -> None:
-    if not venv_python().exists():
-        uv = require_tool(
-            "uv", "Install uv: https://docs.astral.sh/uv/getting-started/installation/"
-        )
-        say("installing backend dependencies (first run)...")
-        subprocess.run([uv, "sync", "--frozen", "--extra", "dev"], cwd=BACKEND, check=True)  # noqa: S603
-    if not (FRONTEND / "node_modules" / "vite").exists():
+    venv = BACKEND / ".venv"
+    uv_lock = BACKEND / "uv.lock"
+    if not venv_python().exists() or needs_install(venv, uv_lock):
+        # Under 'uv run' (dev.sh / dev.cmd) uv has already synced this environment.
+        inside_venv = Path(sys.prefix).resolve() == venv.resolve()
+        if not inside_venv:
+            uv = require_tool(
+                "uv", "Install uv: https://docs.astral.sh/uv/getting-started/installation/"
+            )
+            say("installing backend dependencies from uv.lock...")
+            subprocess.run([uv, "sync", "--frozen", "--extra", "dev"], cwd=BACKEND, check=True)  # noqa: S603
+        write_stamp(venv, uv_lock)
+    modules = FRONTEND / "node_modules"
+    npm_lock = FRONTEND / "package-lock.json"
+    if not (modules / "vite").exists() or needs_install(modules, npm_lock):
         npm = require_tool(
             "npm.cmd" if IS_WINDOWS else "npm", "Install Node.js 22+: https://nodejs.org"
         )
-        say("installing frontend dependencies (first run)...")
+        say("installing frontend dependencies from package-lock.json...")
         subprocess.run([npm, "ci"], cwd=FRONTEND, check=True)  # noqa: S603
+        write_stamp(modules, npm_lock)
 
 
 def check_port_free(port: int, what: str, env_var: str) -> None:

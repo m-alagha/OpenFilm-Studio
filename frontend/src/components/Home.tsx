@@ -26,7 +26,7 @@ export function Home({ system, settings, onSettingsChange }: HomeProps) {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       {!settings["ui.welcome_dismissed"] && (
         <section aria-labelledby="welcome-title" className="rounded-xl border border-indigo-200 bg-indigo-50 p-6">
           <h2 id="welcome-title" className="text-xl font-semibold text-indigo-950">

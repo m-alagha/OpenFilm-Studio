@@ -13,6 +13,7 @@ from app.paths import resolve_data_dir
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 ALLOW_NON_LOOPBACK_ENV = "OPENFILM_ALLOW_NON_LOOPBACK"
+UPDATE_CHECK_ENV = "OPENFILM_UPDATE_CHECK"
 
 
 class ConfigError(Exception):
@@ -34,6 +35,10 @@ class Settings:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     allow_non_loopback: bool = False
+    # OPENFILM_UPDATE_CHECK=0 disables all update network activity (CI, air-gapped).
+    update_checks_disabled: bool = False
+    update_initial_delay_s: float = 5.0
+    update_poll_interval_s: float = 900.0
 
     @property
     def db_path(self) -> Path:
@@ -59,4 +64,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         raise ConfigError("OPENFILM_PORT must be between 1 and 65535")
     allow = env.get(ALLOW_NON_LOOPBACK_ENV, "") == "1"
     check_bind_host(host, allow)
-    return Settings(data_dir=resolve_data_dir(env), host=host, port=port, allow_non_loopback=allow)
+    return Settings(
+        data_dir=resolve_data_dir(env),
+        host=host,
+        port=port,
+        allow_non_loopback=allow,
+        update_checks_disabled=env.get(UPDATE_CHECK_ENV, "").strip() == "0",
+    )

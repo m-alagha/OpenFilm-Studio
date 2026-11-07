@@ -107,3 +107,35 @@ Compatibility is decided by schema version, not app version. A newer app that di
 - **Same-origin UI.** In development, the UI reaches the API through Vite's same-origin proxy.
 
 **Not covered:** other local processes running as the same user. That is out of scope for a single-user local app. A per-launch session token is a candidate for M11 packaging.
+
+## M1.5 implementation (update manager)
+
+Full design, evidence and recovery steps are in `docs/UPDATES.md`.
+
+**Modules**
+
+| Module | Role |
+|---|---|
+| `backend/app/updates/version.py` | SemVer 2.0 |
+| `updates/releases.py` | Strict release validation |
+| `updates/github.py` | Anonymous fixed request; failure mapping; same-host redirects only |
+| `updates/service.py` | Preferences, skip/snooze, rate-limit backoff. Network calls happen outside DB transactions |
+| `updates/install.py` | Install-type detection; per-OS command templates |
+| `updates/verify.py` | Ed25519 manifest, checksums, safe extraction. Fails closed |
+| `datalock.py` | Single-instance lock |
+| `recovery.py` | Backup list and restore CLI |
+| `integrity.py` | Data-folder fingerprint |
+| `api/updates.py` | Update API |
+
+**Background check.** An asyncio task starts after startup and is never awaited by it. It runs the check in a worker thread. Failures are logged and recorded, never raised.
+
+**Startup order:**
+
+1. Prepare the data folder.
+2. Take the data-folder lock.
+3. Open the database: compatibility check, verified backup, then migrate.
+4. Start the update service.
+
+`__main__` acquires the lock before configuring logs, and exits with code 3 if another instance holds it.
+
+**Schema 3** adds the `update_state` row (migration `0003`). The default row is created by the migration, so reads never write.

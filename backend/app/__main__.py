@@ -8,9 +8,13 @@ import sys
 import uvicorn
 
 from app.config import ConfigError, load_settings
+from app.datalock import DataDirLock, DataDirLockedError
 from app.logging_setup import configure_logging
 from app.main import create_app
 from app.paths import DataDirError, prepare_data_dir
+
+EXIT_CONFIG = 2
+EXIT_ALREADY_RUNNING = 3
 
 
 def main() -> int:
@@ -21,18 +25,28 @@ def main() -> int:
         data_dir = prepare_data_dir(settings.data_dir)
     except (ConfigError, DataDirError) as exc:
         print(f"OpenFilm Studio cannot start: {exc}", file=sys.stderr)
-        return 2
-    configure_logging(data_dir / "logs")
-    if settings.allow_non_loopback:
-        print("WARNING: non-loopback binding enabled; the API has no authentication.")
-    uvicorn.run(
-        create_app(settings),
-        host=settings.host,
-        port=settings.port,
-        log_config=None,  # use our redacting root handlers
-        server_header=False,
-        proxy_headers=False,
-    )
+        return EXIT_CONFIG
+    # Take the single-instance lock before touching logs or the database.
+    lock = DataDirLock(data_dir)
+    try:
+        lock.acquire()
+    except DataDirLockedError as exc:
+        print(f"OpenFilm Studio cannot start: {exc}", file=sys.stderr)
+        return EXIT_ALREADY_RUNNING
+    try:
+        configure_logging(data_dir / "logs")
+        if settings.allow_non_loopback:
+            print("WARNING: non-loopback binding enabled; the API has no authentication.")
+        uvicorn.run(
+            create_app(settings, data_lock=lock),
+            host=settings.host,
+            port=settings.port,
+            log_config=None,  # use our redacting root handlers
+            server_header=False,
+            proxy_headers=False,
+        )
+    finally:
+        lock.release()
     return 0
 
 
